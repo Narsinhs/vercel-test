@@ -3,31 +3,37 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import fs from 'fs';
 import path from 'path';
+import _ from 'lodash'
+import { outputDataFormat, outputPageStructureAndMapping, outputDataMainFormat } from '@/constraints';
+import { handleTransformation } from '@/helper/utils';
 
 export default (req: NextApiRequest, res: NextApiResponse) => {
-  // Define the path to your source JSON file
-
-  const sourceFilePath = path.join(process.cwd(), 'src' , 'source', 'input.json');
-  console.log(sourceFilePath , "sourceFilePath")
-  try {
-    console.log(sourceFilePath ,"logme!")
-    // Read the source JSON file
-    const sourceData = JSON.parse(fs.readFileSync(sourceFilePath, 'utf-8'));
-
-
-    // Perform data mappings and transformations
-    const transformedData = mapAndTransformData(sourceData);
-
-    // Send the transformed data as a JSON response
-    res.status(200).json(transformedData);
-  } catch (error) {
-    console.log(error ,"ERROR")
-    res.status(500).json({ error: 'Failed to read and transform data.' });
-  }
+    const sourceFilePath = path.join(process.cwd(), 'src', 'source', 'input.json');
+    try {
+        const sourceData = JSON.parse(fs.readFileSync(sourceFilePath, 'utf-8'));
+        const transformedData = mapAndTransformData(sourceData);
+        res.status(200).json(transformedData);
+    } catch (error) {
+        console.log(error, "ERROR")
+        res.status(500).json({ error: 'Failed to read and transform data.' });
+    }
 };
 
 function mapAndTransformData(sourceData: any[]) {
-    console.log(sourceData , "sourcedata")
+    const modularBlocks: any = []
+    outputPageStructureAndMapping.map((eachOutput) => {
+        const inputKey = eachOutput?.value;
+        const outputKey = eachOutput?.key;
+        const eachOuputRecord = eachOutput?.key;
+        if (_.has(outputDataFormat, eachOuputRecord)) {
+            const transformedData = handleTransformation(inputKey, outputKey, sourceData)
+            if(transformedData) {
+                let outputObject: any = {}
+                outputObject[outputKey] = transformedData;
+                modularBlocks.push(outputObject)
+            }
+        }
+    })
 
-  return sourceData;
+    return { ...outputDataMainFormat, modular_blocks: modularBlocks };
 }
